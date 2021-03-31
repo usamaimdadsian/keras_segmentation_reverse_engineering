@@ -7,7 +7,6 @@ import six
 import cv2
 import numpy as np
 from tqdm import tqdm
-from time import time
 
 from .train import find_latest_checkpoint
 from .data_utils.data_loader import get_image_array, get_segmentation_array,\
@@ -31,11 +30,7 @@ def model_from_checkpoint_path(checkpoints_path):
         model_config['n_classes'], input_height=model_config['input_height'],
         input_width=model_config['input_width'])
     print("loaded weights ", latest_weights)
-    status = model.load_weights(latest_weights)
-
-    if status is not None:
-        status.expect_partial()
-
+    model.load_weights(latest_weights)
     return model
 
 
@@ -76,7 +71,7 @@ def get_legends(class_names, colors=class_colors):
 def overlay_seg_image(inp_img, seg_img):
     orininal_h = inp_img.shape[0]
     orininal_w = inp_img.shape[1]
-    seg_img = cv2.resize(seg_img, (orininal_w, orininal_h), interpolation=cv2.INTER_NEAREST)
+    seg_img = cv2.resize(seg_img, (orininal_w, orininal_h))
 
     fused_img = (inp_img/2 + seg_img/2).astype('uint8')
     return fused_img
@@ -106,12 +101,12 @@ def visualize_segmentation(seg_arr, inp_img=None, n_classes=None,
     seg_img = get_colored_segmentation_image(seg_arr, n_classes, colors=colors)
 
     if inp_img is not None:
-        original_h = inp_img.shape[0]
-        original_w = inp_img.shape[1]
-        seg_img = cv2.resize(seg_img, (original_w, original_h), interpolation=cv2.INTER_NEAREST)
+        orininal_h = inp_img.shape[0]
+        orininal_w = inp_img.shape[1]
+        seg_img = cv2.resize(seg_img, (orininal_w, orininal_h))
 
     if (prediction_height is not None) and (prediction_width is not None):
-        seg_img = cv2.resize(seg_img, (prediction_width, prediction_height), interpolation=cv2.INTER_NEAREST)
+        seg_img = cv2.resize(seg_img, (prediction_width, prediction_height))
         if inp_img is not None:
             inp_img = cv2.resize(inp_img,
                                  (prediction_width, prediction_height))
@@ -132,8 +127,7 @@ def visualize_segmentation(seg_arr, inp_img=None, n_classes=None,
 def predict(model=None, inp=None, out_fname=None,
             checkpoints_path=None, overlay_img=False,
             class_names=None, show_legends=False, colors=class_colors,
-            prediction_width=None, prediction_height=None,
-            read_image_type=1):
+            prediction_width=None, prediction_height=None):
 
     if model is None and (checkpoints_path is not None):
         model = model_from_checkpoint_path(checkpoints_path)
@@ -143,9 +137,9 @@ def predict(model=None, inp=None, out_fname=None,
         "Input should be the CV image or the input file name"
 
     if isinstance(inp, six.string_types):
-        inp = cv2.imread(inp, read_image_type)
+        inp = cv2.imread(inp)
 
-    assert (len(inp.shape) == 3 or len(inp.shape) == 1 or len(inp.shape) == 4), "Image should be h,w,3 "
+    assert len(inp.shape) == 3, "Image should be h,w,3 "
 
     output_width = model.output_width
     output_height = model.output_height
@@ -174,7 +168,7 @@ def predict(model=None, inp=None, out_fname=None,
 def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
                      checkpoints_path=None, overlay_img=False,
                      class_names=None, show_legends=False, colors=class_colors,
-                     prediction_width=None, prediction_height=None, read_image_type=1):
+                     prediction_width=None, prediction_height=None):
 
     if model is None and (checkpoints_path is not None):
         model = model_from_checkpoint_path(checkpoints_path)
@@ -189,11 +183,6 @@ def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
 
     all_prs = []
 
-    if not out_dir is None:
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
     for i, inp in enumerate(tqdm(inps)):
         if out_dir is None:
             out_fname = None
@@ -207,65 +196,15 @@ def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
                      overlay_img=overlay_img, class_names=class_names,
                      show_legends=show_legends, colors=colors,
                      prediction_width=prediction_width,
-                     prediction_height=prediction_height, read_image_type=read_image_type)
+                     prediction_height=prediction_height)
 
         all_prs.append(pr)
 
     return all_prs
 
 
-def set_video(inp, video_name):
-    cap = cv2.VideoCapture(inp)
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    size = (video_width, video_height)
-    fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    video = cv2.VideoWriter(video_name, fourcc, fps, size)
-    return cap, video, fps
-
-
-def predict_video(model=None, inp=None, output=None,
-                  checkpoints_path=None, display=False, overlay_img=True,
-                  class_names=None, show_legends=False, colors=class_colors,
-                  prediction_width=None, prediction_height=None):
-
-    if model is None and (checkpoints_path is not None):
-        model = model_from_checkpoint_path(checkpoints_path)
-    n_classes = model.n_classes
-
-    cap, video, fps = set_video(inp, output)
-    while(cap.isOpened()):
-        prev_time = time()
-        ret, frame = cap.read()
-        if frame is not None:
-            pr = predict(model=model, inp=frame)
-            fused_img = visualize_segmentation(
-                pr, frame, n_classes=n_classes,
-                colors=colors,
-                overlay_img=overlay_img,
-                show_legends=show_legends,
-                class_names=class_names,
-                prediction_width=prediction_width,
-                prediction_height=prediction_height
-                )
-        else:
-            break
-        print("FPS: {}".format(1/(time() - prev_time)))
-        if output is not None:
-            video.write(fused_img)
-        if display:
-            cv2.imshow('Frame masked', fused_img)
-            if cv2.waitKey(fps) & 0xFF == ord('q'):
-                break
-    cap.release()
-    if output is not None:
-        video.release()
-    cv2.destroyAllWindows()
-
-
 def evaluate(model=None, inp_images=None, annotations=None,
-             inp_images_dir=None, annotations_dir=None, checkpoints_path=None, read_image_type=1):
+             inp_images_dir=None, annotations_dir=None, checkpoints_path=None):
 
     if model is None:
         assert (checkpoints_path is not None),\
@@ -292,10 +231,10 @@ def evaluate(model=None, inp_images=None, annotations=None,
     n_pixels = np.zeros(model.n_classes)
 
     for inp, ann in tqdm(zip(inp_images, annotations)):
-        pr = predict(model, inp, read_image_type=read_image_type)
+        pr = predict(model, inp)
         gt = get_segmentation_array(ann, model.n_classes,
                                     model.output_width, model.output_height,
-                                    no_reshape=True, read_image_type=read_image_type)
+                                    no_reshape=True)
         gt = gt.argmax(-1)
         pr = pr.flatten()
         gt = gt.flatten()

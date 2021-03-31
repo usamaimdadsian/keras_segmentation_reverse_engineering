@@ -257,11 +257,11 @@ def build_pyramid_pooling_module(res, input_shape):
 
 
 def _build_pspnet(nb_classes, resnet_layers, input_shape,
-                  activation='softmax', channels=3):
+                  activation='softmax'):
 
     assert IMAGE_ORDERING == 'channels_last'
 
-    inp = Input((input_shape[0], input_shape[1], channels))
+    inp = Input((input_shape[0], input_shape[1], 3))
 
     res = ResNet(inp, layers=resnet_layers)
 
@@ -279,6 +279,5 @@ def _build_pspnet(nb_classes, resnet_layers, input_shape,
     x = Interp([input_shape[0], input_shape[1]])(x)
 
     model = get_segmentation_model(inp, x)
-    model.seg_feats_layer_name = "conv5_4"
 
     return model

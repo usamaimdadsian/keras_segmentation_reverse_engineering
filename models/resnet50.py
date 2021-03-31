@@ -124,15 +124,15 @@ def get_resnet50_encoder(input_height=224,  input_width=224,
                          include_top=True, weights='imagenet',
                          input_tensor=None, input_shape=None,
                          pooling=None,
-                         classes=1000, channels=3):
+                         classes=1000):
 
     assert input_height % 32 == 0
     assert input_width % 32 == 0
 
     if IMAGE_ORDERING == 'channels_first':
-        img_input = Input(shape=(channels, input_height, input_width))
+        img_input = Input(shape=(3, input_height, input_width))
     elif IMAGE_ORDERING == 'channels_last':
-        img_input = Input(shape=(input_height, input_width, channels))
+        img_input = Input(shape=(input_height, input_width, 3))
 
     if IMAGE_ORDERING == 'channels_last':
         bn_axis = 3
@@ -177,9 +177,8 @@ def get_resnet50_encoder(input_height=224,  input_width=224,
     # f6 = x
 
     if pretrained == 'imagenet':
-        weights_path = '/content/resnet50_weights_th_dim_ordering_th_kernels_notop.h5'
-        # weights_path = keras.utils.get_file(
-        #     pretrained_url.split("/")[-1], pretrained_url)
-        Model(img_input, x).load_weights(weights_path, by_name=True, skip_mismatch=True)
+        weights_path = keras.utils.get_file(
+            pretrained_url.split("/")[-1], pretrained_url)
+        Model(img_input, x).load_weights(weights_path)
 
     return img_input, [f1, f2, f3, f4, f5]

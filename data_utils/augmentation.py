@@ -130,7 +130,7 @@ def _load_augmentation_aug_all():
                     0, 2.0)),  # emboss images
                 # search either for all edges or for directed edges,
                 # blend the result with the original image using a blobby mask
-                iaa.BlendAlphaSimplexNoise(iaa.OneOf([
+                iaa.SimplexNoiseAlpha(iaa.OneOf([
                     iaa.EdgeDetect(alpha=(0.5, 1.0)),
                     iaa.DirectedEdgeDetect(
                         alpha=(0.5, 1.0), direction=(0.0, 1.0)),
@@ -155,16 +155,16 @@ def _load_augmentation_aug_all():
                 iaa.OneOf([
                     iaa.Multiply(
                                 (0.5, 1.5), per_channel=0.5),
-                    iaa.BlendAlphaFrequencyNoise(
+                    iaa.FrequencyNoiseAlpha(
                         exponent=(-4, 0),
-                        foreground=iaa.Multiply(
+                        first=iaa.Multiply(
                             (0.5, 1.5), per_channel=True),
-                        background=iaa.contrast.LinearContrast(
+                        second=iaa.ContrastNormalization(
                             (0.5, 2.0))
                     )
                 ]),
                 # improve or worsen the contrast
-                iaa.contrast.LinearContrast((0.5, 2.0), per_channel=0.5),
+                iaa.ContrastNormalization((0.5, 2.0), per_channel=0.5),
                 iaa.Grayscale(alpha=(0.0, 1.0)),
                 # move pixels locally around (with random strengths)
                 sometimes(iaa.ElasticTransformation(
@@ -198,7 +198,7 @@ def _load_augmentation(augmentation_name="aug_all"):
     IMAGE_AUGMENTATION_SEQUENCE = augmentation_functions[augmentation_name]()
 
 
-def _augment_seg(img, seg, augmentation_name="aug_all", other_imgs=None):
+def _augment_seg(img, seg, augmentation_name="aug_all"):
 
     global loaded_augmentation_name
 
@@ -212,24 +212,12 @@ def _augment_seg(img, seg, augmentation_name="aug_all", other_imgs=None):
     # Augment the input image
     image_aug = aug_det.augment_image(img)
 
-    if other_imgs is not None:
-        image_aug = [image_aug]
-
-        for other_img in other_imgs:
-            image_aug.append(aug_det.augment_image(other_img))
-
-    segmap = ia.SegmentationMapsOnImage(
-        seg, shape=img.shape)
+    segmap = ia.SegmentationMapOnImage(
+        seg, nb_classes=np.max(seg) + 1, shape=img.shape)
     segmap_aug = aug_det.augment_segmentation_maps(segmap)
-    segmap_aug = segmap_aug.get_arr()
+    segmap_aug = segmap_aug.get_arr_int()
 
     return image_aug, segmap_aug
-
-
-def _custom_augment_seg(img, seg, augmentation_function, other_imgs=None):
-    augmentation_functions['custom_aug'] = augmentation_function
-
-    return _augment_seg(img, seg, "custom_aug", other_imgs=other_imgs)
 
 
 def _try_n_times(fn, n, *args, **kargs):
@@ -244,13 +232,6 @@ def _try_n_times(fn, n, *args, **kargs):
     return fn(*args, **kargs)
 
 
-def augment_seg(img, seg, augmentation_name="aug_all", other_imgs=None):
+def augment_seg(img, seg, augmentation_name="aug_all"):
     return _try_n_times(_augment_seg, IMAGE_AUGMENTATION_NUM_TRIES,
-                        img, seg, augmentation_name=augmentation_name,
-                        other_imgs=other_imgs)
-
-
-def custom_augment_seg(img, seg, augmentation_function, other_imgs=None):
-    return _try_n_times(_custom_augment_seg, IMAGE_AUGMENTATION_NUM_TRIES,
-                        img, seg, augmentation_function=augmentation_function,
-                        other_imgs=other_imgs)
+                        img, seg, augmentation_name=augmentation_name)

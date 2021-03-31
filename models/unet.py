@@ -15,12 +15,12 @@ elif IMAGE_ORDERING == 'channels_last':
     MERGE_AXIS = -1
 
 
-def unet_mini(n_classes, input_height=360, input_width=480, channels=3):
+def unet_mini(n_classes, input_height=360, input_width=480):
 
     if IMAGE_ORDERING == 'channels_first':
-        img_input = Input(shape=(channels, input_height, input_width))
+        img_input = Input(shape=(3, input_height, input_width))
     elif IMAGE_ORDERING == 'channels_last':
-        img_input = Input(shape=(input_height, input_width, channels))
+        img_input = Input(shape=(input_height, input_width, 3))
 
     conv1 = Conv2D(32, (3, 3), data_format=IMAGE_ORDERING,
                    activation='relu', padding='same')(img_input)
@@ -56,7 +56,7 @@ def unet_mini(n_classes, input_height=360, input_width=480, channels=3):
                    activation='relu', padding='same')(up2)
     conv5 = Dropout(0.2)(conv5)
     conv5 = Conv2D(32, (3, 3), data_format=IMAGE_ORDERING,
-                   activation='relu', padding='same' , name="seg_feats")(conv5)
+                   activation='relu', padding='same')(conv5)
 
     o = Conv2D(n_classes, (1, 1), data_format=IMAGE_ORDERING,
                padding='same')(conv5)
@@ -67,28 +67,28 @@ def unet_mini(n_classes, input_height=360, input_width=480, channels=3):
 
 
 def _unet(n_classes, encoder, l1_skip_conn=True, input_height=416,
-          input_width=608, channels=3):
+          input_width=608):
 
     img_input, levels = encoder(
-        input_height=input_height, input_width=input_width, channels=channels)
+        input_height=input_height, input_width=input_width)
     [f1, f2, f3, f4, f5] = levels
 
     o = f4
 
     o = (ZeroPadding2D((1, 1), data_format=IMAGE_ORDERING))(o)
-    o = (Conv2D(512, (3, 3), padding='valid' , activation='relu' , data_format=IMAGE_ORDERING))(o)
+    o = (Conv2D(512, (3, 3), padding='valid', data_format=IMAGE_ORDERING))(o)
     o = (BatchNormalization())(o)
 
     o = (UpSampling2D((2, 2), data_format=IMAGE_ORDERING))(o)
     o = (concatenate([o, f3], axis=MERGE_AXIS))
     o = (ZeroPadding2D((1, 1), data_format=IMAGE_ORDERING))(o)
-    o = (Conv2D(256, (3, 3), padding='valid', activation='relu' , data_format=IMAGE_ORDERING))(o)
+    o = (Conv2D(256, (3, 3), padding='valid', data_format=IMAGE_ORDERING))(o)
     o = (BatchNormalization())(o)
 
     o = (UpSampling2D((2, 2), data_format=IMAGE_ORDERING))(o)
     o = (concatenate([o, f2], axis=MERGE_AXIS))
     o = (ZeroPadding2D((1, 1), data_format=IMAGE_ORDERING))(o)
-    o = (Conv2D(128, (3, 3), padding='valid' , activation='relu' , data_format=IMAGE_ORDERING))(o)
+    o = (Conv2D(128, (3, 3), padding='valid', data_format=IMAGE_ORDERING))(o)
     o = (BatchNormalization())(o)
 
     o = (UpSampling2D((2, 2), data_format=IMAGE_ORDERING))(o)
@@ -97,7 +97,7 @@ def _unet(n_classes, encoder, l1_skip_conn=True, input_height=416,
         o = (concatenate([o, f1], axis=MERGE_AXIS))
 
     o = (ZeroPadding2D((1, 1), data_format=IMAGE_ORDERING))(o)
-    o = (Conv2D(64, (3, 3), padding='valid', activation='relu', data_format=IMAGE_ORDERING, name="seg_feats"))(o)
+    o = (Conv2D(64, (3, 3), padding='valid', data_format=IMAGE_ORDERING))(o)
     o = (BatchNormalization())(o)
 
     o = Conv2D(n_classes, (3, 3), padding='same',
@@ -108,36 +108,36 @@ def _unet(n_classes, encoder, l1_skip_conn=True, input_height=416,
     return model
 
 
-def unet(n_classes, input_height=416, input_width=608, encoder_level=3, channels=3):
+def unet(n_classes, input_height=416, input_width=608, encoder_level=3):
 
     model = _unet(n_classes, vanilla_encoder,
-                  input_height=input_height, input_width=input_width, channels=channels)
+                  input_height=input_height, input_width=input_width)
     model.model_name = "unet"
     return model
 
 
-def vgg_unet(n_classes, input_height=416, input_width=608, encoder_level=3, channels=3):
+def vgg_unet(n_classes, input_height=416, input_width=608, encoder_level=3):
 
     model = _unet(n_classes, get_vgg_encoder,
-                  input_height=input_height, input_width=input_width, channels=channels)
+                  input_height=input_height, input_width=input_width)
     model.model_name = "vgg_unet"
     return model
 
 
 def resnet50_unet(n_classes, input_height=416, input_width=608,
-                  encoder_level=3, channels=3):
+                  encoder_level=3):
 
     model = _unet(n_classes, get_resnet50_encoder,
-                  input_height=input_height, input_width=input_width, channels=channels)
+                  input_height=input_height, input_width=input_width)
     model.model_name = "resnet50_unet"
     return model
 
 
 def mobilenet_unet(n_classes, input_height=224, input_width=224,
-                   encoder_level=3, channels=3):
+                   encoder_level=3):
 
     model = _unet(n_classes, get_mobilenet_encoder,
-                  input_height=input_height, input_width=input_width, channels=channels)
+                  input_height=input_height, input_width=input_width)
     model.model_name = "mobilenet_unet"
     return model
 

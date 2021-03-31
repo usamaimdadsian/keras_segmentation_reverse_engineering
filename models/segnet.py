@@ -32,7 +32,7 @@ def segnet_decoder(f, n_classes, n_up=3):
 
     o = (UpSampling2D((2, 2), data_format=IMAGE_ORDERING))(o)
     o = (ZeroPadding2D((1, 1), data_format=IMAGE_ORDERING))(o)
-    o = (Conv2D(64, (3, 3), padding='valid', data_format=IMAGE_ORDERING, name="seg_feats"))(o)
+    o = (Conv2D(64, (3, 3), padding='valid', data_format=IMAGE_ORDERING))(o)
     o = (BatchNormalization())(o)
 
     o = Conv2D(n_classes, (3, 3), padding='same',
@@ -42,10 +42,10 @@ def segnet_decoder(f, n_classes, n_up=3):
 
 
 def _segnet(n_classes, encoder,  input_height=416, input_width=608,
-            encoder_level=3, channels=3):
+            encoder_level=3):
 
     img_input, levels = encoder(
-        input_height=input_height,  input_width=input_width, channels=channels)
+        input_height=input_height,  input_width=input_width)
 
     feat = levels[encoder_level]
     o = segnet_decoder(feat, n_classes, n_up=3)
@@ -54,37 +54,37 @@ def _segnet(n_classes, encoder,  input_height=416, input_width=608,
     return model
 
 
-def segnet(n_classes, input_height=416, input_width=608, encoder_level=3, channels=3):
+def segnet(n_classes, input_height=416, input_width=608, encoder_level=3):
 
     model = _segnet(n_classes, vanilla_encoder,  input_height=input_height,
-                    input_width=input_width, encoder_level=encoder_level, channels=channels)
+                    input_width=input_width, encoder_level=encoder_level)
     model.model_name = "segnet"
     return model
 
 
-def vgg_segnet(n_classes, input_height=416, input_width=608, encoder_level=3, channels=3):
+def vgg_segnet(n_classes, input_height=416, input_width=608, encoder_level=3):
 
     model = _segnet(n_classes, get_vgg_encoder,  input_height=input_height,
-                    input_width=input_width, encoder_level=encoder_level, channels=channels)
+                    input_width=input_width, encoder_level=encoder_level)
     model.model_name = "vgg_segnet"
     return model
 
 
 def resnet50_segnet(n_classes, input_height=416, input_width=608,
-                    encoder_level=3, channels=3):
+                    encoder_level=3):
 
     model = _segnet(n_classes, get_resnet50_encoder, input_height=input_height,
-                    input_width=input_width, encoder_level=encoder_level, channels=channels)
+                    input_width=input_width, encoder_level=encoder_level)
     model.model_name = "resnet50_segnet"
     return model
 
 
 def mobilenet_segnet(n_classes, input_height=224, input_width=224,
-                     encoder_level=3, channels=3):
+                     encoder_level=3):
 
     model = _segnet(n_classes, get_mobilenet_encoder,
                     input_height=input_height,
-                    input_width=input_width, encoder_level=encoder_level, channels=channels)
+                    input_width=input_width, encoder_level=encoder_level)
     model.model_name = "mobilenet_segnet"
     return model
 
